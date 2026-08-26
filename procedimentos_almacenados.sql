@@ -41,8 +41,6 @@ begin
     call actualizar_estado_repartidor(repartidor_id, 1);
     
     commit;
-    
-    
 end ¬¬
 
 delimiter ;

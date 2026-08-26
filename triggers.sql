@@ -1,11 +1,66 @@
---	Actualizar stock de ingredientes	(AFTER INSERT en pedido_pizzas	Restar automáticamente el stock de ingredientes cuando se realiza un pedido)
+use pizzeria_don_piccolo;
 
---	Historial de precios de pizzas	(AFTER UPDATE en pizza	Registrar en tabla historial_precios cada vez que se modifique el precio de una pizza)
-
---	Liberar repartidor	(AFTER UPDATE en domicilio	Marcar repartidor como "disponible" nuevamente cuando termina un domicilio (hora_llegada no NULL))
-
--- validar repartidor disponible (BEFORE INSERT en domicilio	Verificar que el repartidor asignado esté disponible antes de registrar un nuevo domicilio)
+-- actualizar estock al agregar pizaa
 delimiter ¬¬
+
+create trigger actualizar_stock_al_agregar_pizza
+after insert on pedido_pizzas
+for each row
+begin
+    update ingredientes i
+    inner join pizza_ingredientes pi on i.id = pi.ingredientes_fk
+    set i.stock = i.stock - (new.cantidad * pi.cantidad)
+    where pi.pizza_fk = new.pizza_fk;
+end ¬¬
+
+delimiter ;
+
+-- Historial de precios
+
+delimiter ¬¬
+
+create trigger historial_precios_pizza
+after update on pizza
+for each row
+begin
+    if old.precio_base != new.precio_base then
+        insert into historial_precios (
+            pizza_id,
+            precio_anterior,
+            precio_nuevo,
+            fecha_cambio
+        ) values (
+            new.id,
+            old.precio_base,
+            new.precio_base,
+            now()
+        );
+    end if;
+end ¬¬
+
+delimiter ;
+
+-- reparditor libre
+
+delimiter ¬¬
+
+create trigger liberar_repartidor
+after update on domicilio
+for each row
+begin
+    if old.hora_llegada is null and new.hora_llegada is not null then
+        update repartidor
+        set disponible = 1
+        where id = new.repartidor_fk;
+    end if;
+end ¬¬
+
+delimiter ;
+
+-- validar repartidor disponible
+
+delimiter ¬¬
+
 create trigger validar_repartidor_disponible
 before insert on domicilio
 for each row
@@ -14,30 +69,92 @@ begin
     
     select count(*) into repartidor_disponible
     from repartidor
-    where id = new.repartidor_fk and disponible = 1;
+    where id = new.repartidor_fk 
+    and estado = 1;
     
     if repartidor_disponible = 0 then
-        signal sqlstate '45000' set message_text = 'El repartidor no está disponible';
+        signal sqlstate '45000' 
+        set message_text = 'El repartidor no está disponible';
     end if;
 end ¬¬
 
---	Calcular precio de envío (INSERT)	(BEFORE INSERT en domicilio	Calcular automáticamente el precio_envio basado en la distancia al insertar)
+delimiter ;
 
---	Actualizar precio de envío (UPDATE)	(BEFORE UPDATE en domicilio	Recalcular el precio_envio si cambia la distancia)
+-- calcular precio de envio
 
---	Validar stock suficiente	(BEFORE INSERT en pedido_pizzas	Verificar que haya suficiente stock de ingredientes antes de agregar una pizza al pedido)
+delimiter ¬¬
+
+create trigger calcular_precio_envio
+before insert on domicilio
+for each row
+begin
+    set new.precio_envio = calcular_costo_envio(new.distancia);
+end ¬¬
+
+delimiter ;
+
+-- actualizar precio de envio
+
+delimiter ¬¬
+
+create trigger actualizar_precio_envio
+before update on domicilio
+for each row
+begin
+    if old.distancia != new.distancia then
+        set new.precio_envio = calcular_costo_envio(new.distancia);
+        
+        update pedido
+        set total = calcular_total_pedido(new.pedido_fk)
+        where id = new.pedido_fk;
+    end if;
+end ¬¬
+
+delimiter ;
+
+-- validar stock corregido
+
+delimiter ¬¬
+
 create trigger validar_stock_suficiente
 before insert on pedido_pizzas
 for each row
 begin
-    declare stock_suficiente int;
+    declare ingrediente_nombre varchar(45);
+    declare stock_actual int;
+    declare cantidad_necesaria int;
+    declare cantidad_por_pizza int;
+    declare done int default false;
     
-    select count(*) into stock_suficiente
-    from pizza_ingredientes pi
-    join ingredientes i on pi.ingredientes_fk = i.id
-    where pi.pizza_fk = new.pizza_fk and i.stock >= (pi.cantidad * new.cantidad);
+    declare cursor_ingredientes cursor for
+        select i.nombre, i.stock, pi.cantidad
+        from ingredientes i
+        inner join pizza_ingredientes pi on i.id = pi.ingredientes_fk
+        where pi.pizza_fk = new.pizza_fk;
     
-    if stock_suficiente = 0 then
-        signal sqlstate '45000' set message_text = 'No hay suficiente stock de ingredientes para esta pizza';
-    end if;
+    declare continue handler for not found set done = true;
+    
+    open cursor_ingredientes;
+    
+    verificar: loop
+        fetch cursor_ingredientes into ingrediente_nombre, stock_actual, cantidad_por_pizza;
+        
+        if done then
+            leave verificar;
+        end if;
+        
+        set cantidad_necesaria = cantidad_por_pizza * new.cantidad;
+        
+        if stock_actual < cantidad_necesaria then
+            close cursor_ingredientes;
+            signal sqlstate '45000' 
+            set message_text = concat('Stock insuficiente para: ', ingrediente_nombre);
+        end if;
+        
+    end loop;
+    
+    close cursor_ingredientes;
+    
 end ¬¬
+
+delimiter ;
