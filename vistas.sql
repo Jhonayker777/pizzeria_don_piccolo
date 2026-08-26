@@ -63,3 +63,11 @@ from domicilio d
 inner join pedido p on d.pedido_fk = p.id
 inner join persona pr on d.repartidor_fk = pr.id
 where p.estado != 'cancelado';
+
+
+-- repartidores  disponibles (Mostrar repartidores disponibles y su zona de reparto)
+create view repartidores_disponibles as
+select p.nombre, p.apellido, r.zona, case when r.estado = 0 then 'Disponible' else 'Ocupado' end as estado
+from persona p
+inner join repartidor r on p.id = r.id
+where r.estado = 0; -- 0 para disponible, 1 para ocupado;
