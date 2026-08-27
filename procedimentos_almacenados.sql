@@ -1,5 +1,23 @@
 use pizzeria_don_piccolo;
 
+-- Actualizar estado del repartidor (Actualizar disponibilidad del repartidor)
+
+delimiter ¬¬
+
+create procedure actualizar_estado_repartidor(
+    in repartidor_id int,
+    in nuevo_estado boolean
+)
+begin
+    update repartidor
+    set disponible = nuevo_estado
+    where id = repartidor_id;
+    
+    
+end ¬¬
+
+delimiter ;
+
 --- marcar pedido como entregado (Actualizar estado del pedido y del domicilio, liberar repartidor)
 
 delimiter ¬¬
@@ -119,23 +137,9 @@ end ¬¬
 
 delimiter ;
 
--- Actualizar estado del repartidor (Actualizar disponibilidad del repartidor)
 
-delimiter ¬¬
 
-create procedure actualizar_estado_repartidor(
-    in repartidor_id int,
-    in nuevo_estado boolean
-)
-begin
-    update repartidor
-    set disponible = nuevo_estado
-    where id = repartidor_id;
-    
-    
-end ¬¬
 
-delimiter ;
 
 -- agregar pizza a pedido (Insertar en pedido_pizzas y actualizar total del pedido)
 
