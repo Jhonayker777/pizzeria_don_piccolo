@@ -112,49 +112,27 @@ end ¬¬
 
 delimiter ;
 
--- validar stock corregido
+-- validar stock 
 
 delimiter ¬¬
 
-create trigger validar_stock_suficiente
+create trigger validar_stock_count
 before insert on pedido_pizzas
 for each row
 begin
-    declare ingrediente_nombre varchar(45);
-    declare stock_actual int;
-    declare cantidad_necesaria int;
-    declare cantidad_por_pizza int;
-    declare done int default false;
+    declare ingredientes_faltantes int;
     
-    declare cursor_ingredientes cursor for
-        select i.nombre, i.stock, pi.cantidad
-        from ingredientes i
-        inner join pizza_ingredientes pi on i.id = pi.ingredientes_fk
-        where pi.pizza_fk = new.pizza_fk;
+    select count(*)
+    into ingredientes_faltantes
+    from pizza_ingredientes pi
+    inner join ingredientes i on pi.ingredientes_fk = i.id
+    where pi.pizza_fk = new.pizza_fk
+    and i.stock < (pi.cantidad * new.cantidad);
     
-    declare continue handler for not found set done = true;
-    
-    open cursor_ingredientes;
-    
-    verificar: loop
-        fetch cursor_ingredientes into ingrediente_nombre, stock_actual, cantidad_por_pizza;
-        
-        if done then
-            leave verificar;
-        end if;
-        
-        set cantidad_necesaria = cantidad_por_pizza * new.cantidad;
-        
-        if stock_actual < cantidad_necesaria then
-            close cursor_ingredientes;
-            signal sqlstate '45000' 
-            set message_text = concat('Stock insuficiente para: ', ingrediente_nombre);
-        end if;
-        
-    end loop;
-    
-    close cursor_ingredientes;
-    
+    if ingredientes_faltantes > 0 then
+        signal sqlstate '45000' 
+        set message_text = 'No hay suficiente stock de ingredientes';
+    end if;
 end ¬¬
 
 delimiter ;
