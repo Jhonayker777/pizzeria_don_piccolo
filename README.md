@@ -449,8 +449,7 @@ WHERE c.id IN (
 
 ## 👨‍💻 Autores
 
-- **[Nombre del autor 1]**
-- **[Nombre del autor 2]**
+- **Jhonayker Quintero**
 
 ---
 

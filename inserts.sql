@@ -1,6 +1,6 @@
--- POBLACION DE LAS TABLAS
-
-
+-- =============================================
+-- POBLACION DE LAS TABLAS - CORREGIDO
+-- =============================================
 
 USE pizzeria_don_piccolo;
 
@@ -51,11 +51,11 @@ INSERT INTO encargado_caja (id) VALUES (7), (8);
 
 -- 6. REPARTIDORES (IDs 9 y 10)
 INSERT INTO repartidor (id, zona, estado) VALUES
-(9, 'Norte', 0),
-(10, 'Sur', 0);
+(9, 'Norte', 0),  -- 0 = ocupado
+(10, 'Sur', 0);   -- 0 = ocupado
 
--- 7. INGREDIENTES
-INSERT INTO ingredientes (id, nombre, stock, estock_minimo, precio_unitario) VALUES
+-- 7. INGREDIENTES (CORREGIDO: stock_minimo)
+INSERT INTO ingredientes (id, nombre, stock, stock_minimo, precio_unitario) VALUES
 (1, 'Masa para pizza', 50, 10, 2000),
 (2, 'Salsa de tomate', 30, 5, 1500),
 (3, 'Queso mozzarella', 40, 8, 3000),
@@ -68,7 +68,7 @@ INSERT INTO ingredientes (id, nombre, stock, estock_minimo, precio_unitario) VAL
 (10, 'Orégano', 8, 2, 500);
 
 -- 8. PIZZAS
-INSERT INTO pizza (id, nombre, tamaño, precio_base, tipo) VALUES
+INSERT INTO pizza (id, nombre, tamano_cm, precio_base, tipo) VALUES
 (1, 'Margarita', 30, 18000, 'clasica'),
 (2, 'Pepperoni', 35, 22000, 'clasica'),
 (3, 'Hawaiana', 30, 20000, 'especial'),
@@ -107,28 +107,22 @@ INSERT INTO pizza_ingredientes (id, cantidad, pizza_fk, ingredientes_fk) VALUES
 (21, 2, 6, 2),
 (22, 2, 6, 3);
 
--- 10. PEDIDOS
+-- 10. PEDIDOS (CORREGIDO: eliminados 'app')
 INSERT INTO pedido (id, fecha, metodo_pago, estado, total, cliente_fk, encargado_caja_fk) VALUES
 (1, '2026-03-01 12:30:00', 'efectivo', 'entregado', 22000, 1, 7),
 (2, '2026-03-01 13:15:00', 'tarjeta', 'entregado', 40000, 2, 7),
 (3, '2026-03-01 14:00:00', 'efectivo', 'entregado', 38000, 3, 8),
-
--- Pedidos del 2 de marzo
 (4, '2026-03-02 11:45:00', 'tarjeta', 'preparando', 25000, 1, 7),
 (5, '2026-03-02 12:30:00', 'efectivo', 'pendiente', 52000, 4, 8),
 (6, '2026-03-02 19:00:00', 'tarjeta', 'entregado', 20000, 5, 7),
-
--- Pedidos del 3 de marzo
 (7, '2026-03-03 13:00:00', 'efectivo', 'cancelado', 22000, 2, 8),
 (8, '2026-03-03 20:30:00', 'tarjeta', 'entregado', 45000, 6, 7),
-
--- Pedidos adicionales para análisis
 (9, '2026-03-04 12:00:00', 'efectivo', 'entregado', 32000, 1, 7),
 (10, '2026-03-04 13:30:00', 'tarjeta', 'entregado', 45000, 2, 8),
-(11, '2026-03-05 11:00:00', 'app', 'entregado', 28000, 3, 7),
+(11, '2026-03-05 11:00:00', 'efectivo', 'entregado', 28000, 3, 7),
 (12, '2026-03-05 14:00:00', 'efectivo', 'entregado', 52000, 4, 8),
 (13, '2026-03-06 12:45:00', 'tarjeta', 'entregado', 38000, 5, 7),
-(14, '2026-03-06 21:00:00', 'app', 'entregado', 65000, 6, 8);
+(14, '2026-03-06 21:00:00', 'tarjeta', 'entregado', 65000, 6, 8);
 
 -- 11. PEDIDO_PIZZAS
 INSERT INTO pedido_pizzas (id, cantidad, precio_unitario, pedido_fk, pizza_fk) VALUES
@@ -163,18 +157,13 @@ INSERT INTO pago (id, monto, metodo_pago, fecha_pago, estado, pedido_fk) VALUES
 (7, 22000, 'efectivo', '2026-03-07', 'pendiente', 7),
 (8, 45000, 'tarjeta', '2026-03-08', 'pagado', 8);
 
--- 14. HISTORIAL_PRECIOS
+-- 14. HISTORIAL_PRECIOS (CORREGIDO: fecha_modificacion como DATE)
 INSERT INTO historial_precios (id, precio_anterior, precio_nuevo, fecha_modificacion, pizza_fk) VALUES
--- Cambios del mes de enero
-(1, 15000, 18000, '2026-01-15 10:30:00', 1),
-(2, 20000, 22000, '2026-01-20 14:15:00', 2),
-
--- Cambios del mes de febrero
-(3, 18000, 20000, '2026-02-01 09:45:00', 3),
-(4, 22000, 25000, '2026-02-15 16:30:00', 5),
-
--- Cambios del mes de marzo (más recientes)
-(5, 17000, 19000, '2026-03-01 11:00:00', 6),
-(6, 25000, 28000, '2026-03-05 15:20:00', 5),
-(7, 19000, 21000, '2026-03-10 08:45:00', 4),
-(8, 18000, 20000, '2026-03-15 12:30:00', 1);
+(1, 15000, 18000, '2026-01-15', 1),
+(2, 20000, 22000, '2026-01-20', 2),
+(3, 18000, 20000, '2026-02-01', 3),
+(4, 22000, 25000, '2026-02-15', 5),
+(5, 17000, 19000, '2026-03-01', 6),
+(6, 25000, 28000, '2026-03-05', 5),
+(7, 19000, 21000, '2026-03-10', 4),
+(8, 18000, 20000, '2026-03-15', 1);

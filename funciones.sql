@@ -1,8 +1,8 @@
 use pizzeria_don_piccolo;
 
-
--- calcular total de un pedido (Suma de los precios de las pizzas y el costo de envío)
-
+-- =============================================
+-- FUNCIÓN 1: Calcular total del pedido (CORRECTA)
+-- =============================================
 delimiter ¬¬
 
 create function calcular_total_pedido(pedido_id int) 
@@ -32,13 +32,14 @@ end ¬¬
 
 delimiter ;
 
--- calcular ganancia neta diaria (Ingresos - Costos de ingredientes)
-
+-- =============================================
+-- FUNCIÓN 2: Ganancia neta diaria (CORREGIDA)
+-- =============================================
 delimiter ¬¬
 
 create function ganancia_neta_diaria(fecha_consulta date)
 returns double
-reads sql data
+reads sql data  -- ✅ NOT DETERMINISTIC
 begin
     declare ganancia double;
     declare total_ventas double default 0;
@@ -58,7 +59,7 @@ begin
     join pedido_pizzas pp on p.id = pp.pizza_fk
     join pedido pe on pe.id = pp.pedido_fk
     where date(pe.fecha) = fecha_consulta
-    and pe.estado != 'cancelado';
+    and pe.estado != 'cancelado';  -- ✅ Excluir cancelados
 
     set ganancia = total_ventas - total_costos;
 
@@ -67,8 +68,9 @@ end ¬¬
 
 delimiter ;
 
--- Calcular costo de envío basado en distancia (tarifa por km y tarifa mínima)
-
+-- =============================================
+-- FUNCIÓN 3: Calcular costo de envío (CORRECTA)
+-- =============================================
 delimiter ¬¬
 
 create function calcular_costo_envio(distancia double)
@@ -91,8 +93,9 @@ end ¬¬
 
 delimiter ;
 
--- Estimar tiempo de entrega basado en distancia y velocidad promedio
-
+-- =============================================
+-- FUNCIÓN 4: Estimar tiempo de entrega (CORRECTA)
+-- =============================================
 delimiter ¬¬
 
 create function estimar_tiempo_entrega(distancia double)
@@ -110,8 +113,9 @@ end ¬¬
 
 delimiter ;
 
--- Identificar clientes frecuentes (Determinar si un cliente ha realizado más de 5 pedidos en un mes)
-
+-- =============================================
+-- FUNCIÓN 5: Identificar clientes frecuentes (CORREGIDA)
+-- =============================================
 delimiter ¬¬
 
 create function es_cliente_frecuente(
@@ -131,7 +135,7 @@ begin
     where p.cliente_fk = cliente_id
     and year(p.fecha) = año
     and month(p.fecha) = mes
-    and p.estado != 'cancelado';
+    and p.estado != 'cancelado';  -- ✅ Excluir cancelados
 
     if cantidad_pedidos > 5 then
         return true;

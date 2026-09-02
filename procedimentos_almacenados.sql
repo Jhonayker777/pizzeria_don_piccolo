@@ -1,7 +1,8 @@
 use pizzeria_don_piccolo;
 
--- Actualizar estado del repartidor (Actualizar disponibilidad del repartidor)
-
+-- =============================================
+-- PROCEDIMIENTO 1: Actualizar estado repartidor
+-- =============================================
 delimiter ¬¬
 
 create procedure actualizar_estado_repartidor(
@@ -9,22 +10,64 @@ create procedure actualizar_estado_repartidor(
     in nuevo_estado boolean
 )
 begin
+    declare exit handler for sqlexception
+    begin
+        rollback;
+        select 'Error al actualizar estado del repartidor' as mensaje_error;
+    end;
+    
+    start transaction;
+    
+    if not exists (select 1 from repartidor where id = repartidor_id) then
+        rollback;
+        select 'El repartidor no existe' as mensaje_error;
+    end if;
+    
     update repartidor
-    set disponible = nuevo_estado
+    set estado = nuevo_estado
     where id = repartidor_id;
     
+    commit;
+    
+    select concat(
+        'Repartidor #', repartidor_id,
+        ' actualizado a ',
+        case 
+            when nuevo_estado = 1 then 'disponible'
+            else 'no disponible'
+        end
+    ) as mensaje_exito;
     
 end ¬¬
 
 delimiter ;
 
---- marcar pedido como entregado (Actualizar estado del pedido y del domicilio, liberar repartidor)
-
+-- =============================================
+-- PROCEDIMIENTO 2: Marcar pedido como entregado
+-- =============================================
 delimiter ¬¬
 
 create procedure marcar_pedido_entregado(pedido_id int)
 begin
     declare repartidor_id int;
+    
+    declare exit handler for sqlexception
+    begin
+        rollback;
+        select 'Error al marcar pedido como entregado' as mensaje_error;
+    end;
+    
+    start transaction;
+    
+    if not exists (select 1 from pedido where id = pedido_id) then
+        rollback;
+        select 'El pedido no existe' as mensaje_error;
+    end if;
+    
+    if not exists (select 1 from domicilio where pedido_fk = pedido_id) then
+        rollback;
+        select 'El pedido no tiene domicilio asignado' as mensaje_error;
+    end if;
     
     select repartidor_fk into repartidor_id 
     from domicilio 
@@ -40,12 +83,17 @@ begin
     
     call actualizar_estado_repartidor(repartidor_id, 1);
     
+    commit;
+    
+    select concat('Pedido #', pedido_id, ' marcado como entregado.') as mensaje_exito;
+    
 end ¬¬
 
 delimiter ;
 
--- registrar nuevo pedido (Insertar en pedido y domicilio, asignar repartidor disponible, calcular total y costo de envío)
-
+-- =============================================
+-- PROCEDIMIENTO 3: Registrar nuevo pedido
+-- =============================================
 delimiter ¬¬
 
 create procedure registrar_nuevo_pedido(
@@ -58,7 +106,25 @@ create procedure registrar_nuevo_pedido(
 begin
     declare pedido_id int;
     declare repartidor_id int;
-    declare costo_envio double; 
+    declare costo_envio double;
+    
+    declare exit handler for sqlexception
+    begin
+        rollback;
+        select 'Error al registrar el pedido' as mensaje_error;
+    end;
+    
+    start transaction;
+    
+    if not exists (select 1 from cliente where id = cliente_id) then
+        rollback;
+        select 'El cliente no existe' as mensaje_error;
+    end if;
+    
+    if not exists (select 1 from encargado_caja where id = encargado_caja_id) then
+        rollback;
+        select 'El encargado de caja no existe' as mensaje_error;
+    end if;
     
     set costo_envio = calcular_costo_envio(v_distancia);
     
@@ -82,9 +148,14 @@ begin
     
     select id into repartidor_id
     from repartidor
-    where disponible = 1
+    where estado = 1
     and zona = v_zona
     limit 1;
+    
+    if repartidor_id is null then
+        rollback;
+        select 'No hay repartidor disponible en esta zona' as mensaje_error;
+    end if;
     
     call registrar_nuevo_domicilio(
         pedido_id,
@@ -94,19 +165,28 @@ begin
     );
     
     update repartidor
-    set disponible = 0
+    set estado = 0
     where id = repartidor_id;
     
     update pedido
     set total = calcular_total_pedido(pedido_id)
     where id = pedido_id;
-
+    
+    commit;
+    
+    select concat(
+        'Pedido #', pedido_id, 
+        ' registrado exitosamente. Repartidor #', repartidor_id,
+        ' asignado.'
+    ) as mensaje_exito;
+    
 end ¬¬
 
 delimiter ;
 
--- registrar nuevo domicilio (Insertar en domicilio, asignar repartidor disponible, calcular costo de envío)
-
+-- =============================================
+-- PROCEDIMIENTO 4: Registrar nuevo domicilio
+-- =============================================
 delimiter ¬¬
 
 create procedure registrar_nuevo_domicilio(
@@ -117,6 +197,23 @@ create procedure registrar_nuevo_domicilio(
 )
 begin
     declare exit handler for sqlexception
+    begin
+        rollback;
+        select 'Error al registrar el domicilio' as mensaje_error;
+    end;
+    
+    start transaction;
+    
+    if not exists (select 1 from pedido where id = pedido_id) then
+        rollback;
+        select 'El pedido no existe' as mensaje_error;
+    end if;
+    
+    if not exists (select 1 from repartidor where id = repartidor_id) then
+        rollback;
+        select 'El repartidor no existe' as mensaje_error;
+    end if;
+    
     insert into domicilio (
         hora_salida,
         hora_llegada,
@@ -133,16 +230,15 @@ begin
         repartidor_id
     );
     
+    commit;
+    
 end ¬¬
 
 delimiter ;
 
-
-
-
-
--- agregar pizza a pedido (Insertar en pedido_pizzas y actualizar total del pedido)
-
+-- =============================================
+-- PROCEDIMIENTO 5: Agregar pizza a pedido
+-- =============================================
 delimiter ¬¬
 
 create procedure agregar_pizza_a_pedido(
@@ -152,6 +248,24 @@ create procedure agregar_pizza_a_pedido(
 )
 begin
     declare precio_unitario double;
+    
+    declare exit handler for sqlexception
+    begin
+        rollback;
+        select 'Error al agregar pizza al pedido' as mensaje_error;
+    end;
+    
+    start transaction;
+    
+    if not exists (select 1 from pedido where id = pedido_id) then
+        rollback;
+        select 'El pedido no existe' as mensaje_error;
+    end if;
+    
+    if not exists (select 1 from pizza where id = pizza_id) then
+        rollback;
+        select 'La pizza no existe' as mensaje_error;
+    end if;
     
     select precio_base into precio_unitario
     from pizza
@@ -172,6 +286,12 @@ begin
     update pedido
     set total = calcular_total_pedido(pedido_id)
     where id = pedido_id;
+    
+    commit;
+    
+    select concat(
+        cantidad, ' pizza(s) agregada(s) al pedido #', pedido_id
+    ) as mensaje_exito;
     
 end ¬¬
 

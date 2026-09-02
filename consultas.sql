@@ -2,8 +2,8 @@
 use pizzaria_don_piccolo;
 --	Clientes con pedidos entre fechas	(Obtener clientes con pedidos en un rango de fechas (BETWEEN))
 select 
-pc.nombre,
-pc.apellido,
+    pc.nombre,
+    pc.apellido,
 count(p.id) as cantidad_pedidos 
 from persona pc inner join pedido p on pc.id = p.cliente_fk
 where p.fecha between "2026-03-01" and "2026-03-02"

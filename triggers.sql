@@ -1,6 +1,8 @@
 use pizzeria_don_piccolo;
 
--- actualizar estock al agregar pizaa
+-- =============================================
+-- TRIGGER 1: Actualizar stock al agregar pizza (CORRECTO)
+-- =============================================
 delimiter ¬¬
 
 create trigger actualizar_stock_al_agregar_pizza
@@ -15,8 +17,9 @@ end ¬¬
 
 delimiter ;
 
--- Historial de precios
-
+-- =============================================
+-- TRIGGER 2: Historial de precios (CORREGIDO)
+-- =============================================
 delimiter ¬¬
 
 create trigger historial_precios_pizza
@@ -25,7 +28,7 @@ for each row
 begin
     if old.precio_base != new.precio_base then
         insert into historial_precios (
-            pizza_id,
+            pizza_fk,  -- ✅ Columna correcta
             precio_anterior,
             precio_nuevo,
             fecha_cambio
@@ -40,8 +43,9 @@ end ¬¬
 
 delimiter ;
 
--- reparditor libre
-
+-- =============================================
+-- TRIGGER 3: Liberar repartidor (CORREGIDO)
+-- =============================================
 delimiter ¬¬
 
 create trigger liberar_repartidor
@@ -50,15 +54,16 @@ for each row
 begin
     if old.hora_llegada is null and new.hora_llegada is not null then
         update repartidor
-        set disponible = 1
+        set estado = 1  -- ✅ Columna correcta
         where id = new.repartidor_fk;
     end if;
 end ¬¬
 
 delimiter ;
 
--- validar repartidor disponible
-
+-- =============================================
+-- TRIGGER 4: Validar repartidor disponible (CORRECTO)
+-- =============================================
 delimiter ¬¬
 
 create trigger validar_repartidor_disponible
@@ -80,8 +85,9 @@ end ¬¬
 
 delimiter ;
 
--- calcular precio de envio
-
+-- =============================================
+-- TRIGGER 5: Calcular precio de envío (CORRECTO)
+-- =============================================
 delimiter ¬¬
 
 create trigger calcular_precio_envio
@@ -93,8 +99,9 @@ end ¬¬
 
 delimiter ;
 
--- actualizar precio de envio
-
+-- =============================================
+-- TRIGGER 6: Actualizar precio de envío (CORRECTO)
+-- =============================================
 delimiter ¬¬
 
 create trigger actualizar_precio_envio
@@ -112,26 +119,27 @@ end ¬¬
 
 delimiter ;
 
--- validar stock 
-
+-- =============================================
+-- TRIGGER 7: Validar stock (MEJORADO)
+-- =============================================
 delimiter ¬¬
 
 create trigger validar_stock_count
 before insert on pedido_pizzas
 for each row
 begin
-    declare ingredientes_faltantes int;
+    declare ingrediente_faltante varchar(45);
     
-    select count(*)
-    into ingredientes_faltantes
+    select i.nombre into ingrediente_faltante
     from pizza_ingredientes pi
     inner join ingredientes i on pi.ingredientes_fk = i.id
     where pi.pizza_fk = new.pizza_fk
-    and i.stock < (pi.cantidad * new.cantidad);
+    and i.stock < (pi.cantidad * new.cantidad)
+    limit 1;
     
-    if ingredientes_faltantes > 0 then
+    if ingrediente_faltante is not null then
         signal sqlstate '45000' 
-        set message_text = 'No hay suficiente stock de ingredientes';
+        set message_text = concat('Stock insuficiente para: ', ingrediente_faltante);
     end if;
 end ¬¬
 
